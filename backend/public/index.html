@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Event Check-In</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 8px 12px; border: 1px solid #ccc; }
+    button { padding: 5px 10px; }
+  </style>
+</head>
+<body>
+  <h1>Event Check-In</h1>
+  <table id="attendee-table"></table>
+  <script>
+    async function loadAttendees() {
+      const res = await fetch('/attendees');
+      const attendees = await res.json();
+      const table = document.getElementById('attendee-table');
+      table.innerHTML = '<tr><th>Name</th><th>Email</th><th>Guests</th><th>Checked In</th><th>Action</th></tr>';
+      attendees.forEach(a => {
+        table.innerHTML += '<tr>' +
+          '<td>' + a.swimmer_name + '</td>' +
+          '<td>' + a.parent_email + '</td>' +
+          '<td>' + a.total_guests + '</td>' +
+          '<td>' + (a.checked_in ? '✅' : '❌') + '</td>' +
+          '<td>' + (!a.checked_in ? '<button onclick="checkIn(' + a.id + ')">Check In</button>' : '') + '</td>' +
+          '</tr>';
+      });
+    }
+
+    async function checkIn(id) {
+      await fetch('/checkin/' + id, { method: 'POST' });
+      loadAttendees();
+    }
+
+    loadAttendees();
+  </script>
+</body>
+</html>
