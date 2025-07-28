@@ -1,3 +1,4 @@
+// server.js (Node.js + Express backend)
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
@@ -27,7 +28,24 @@ app.get('/attendees', async (req, res) => {
 app.post('/checkin/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await pool.query('UPDATE attendees SET checked_in = true WHERE id = $1', [id]);
+    const { guests_checked_in } = req.body;
+    await pool.query(
+      'UPDATE attendees SET checked_in = true, guests_checked_in = $1 WHERE id = $2',
+      [guests_checked_in, id]
+    );
+    res.sendStatus(200);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+app.post('/uncheckin/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(
+      'UPDATE attendees SET checked_in = false, guests_checked_in = NULL WHERE id = $1',
+      [id]
+    );
     res.sendStatus(200);
   } catch (err) {
     res.status(500).send(err.message);

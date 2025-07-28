@@ -1,40 +1,106 @@
+
 <!DOCTYPE html>
 <html>
 <head>
   <title>Event Check-In</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { padding: 8px 12px; border: 1px solid #ccc; }
-    button { padding: 5px 10px; }
+    body { font-family: Arial, sans-serif; padding: 1rem; margin: 0; }
+    h1 { text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 1rem; }
+    th, td { padding: 0.75rem; border: 1px solid #ccc; text-align: center; }
+    button, input[type='number'] {
+      padding: 0.4rem 0.6rem;
+      font-size: 1rem;
+      margin: 0.2rem;
+    }
+    .actions { display: flex; flex-direction: column; gap: 0.3rem; }
+    #export-btn { margin-top: 1rem; display: block; width: 100%; max-width: 200px; margin-left: auto; margin-right: auto; }
+    @media (max-width: 600px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead tr { display: none; }
+      td {
+        position: relative;
+        padding-left: 50%;
+      }
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        padding-left: 0.5rem;
+        font-weight: bold;
+      }
+    }
   </style>
 </head>
 <body>
   <h1>Event Check-In</h1>
+  <input type="text" id="search" placeholder="🔍 Search by swimmer name..." oninput="filterTable()" style="width: 100%; max-width: 300px; display: block; margin: 1rem auto; padding: 0.5rem; font-size: 1rem;">
+  <button id="export-btn" onclick="exportCSV()">⬇️ Export CSV</button>
   <table id="attendee-table"></table>
+
   <script>
     async function loadAttendees() {
       const res = await fetch('/attendees');
       const attendees = await res.json();
       const table = document.getElementById('attendee-table');
-      table.innerHTML = '<tr><th>Name</th><th>Email</th><th>Guests</th><th>Checked In</th><th>Action</th></tr>';
+      table.innerHTML = '<thead><tr><th>Name</th><th>Email</th><th>Total Guests</th><th>Checked In</th><th>Guests Checked In</th><th>Action</th></tr></thead><tbody>';
       attendees.forEach(a => {
-        table.innerHTML += '<tr>' +
-          '<td>' + a.swimmer_name + '</td>' +
-          '<td>' + a.parent_email + '</td>' +
-          '<td>' + a.total_guests + '</td>' +
-          '<td>' + (a.checked_in ? '✅' : '❌') + '</td>' +
-          '<td>' + (!a.checked_in ? '<button onclick="checkIn(' + a.id + ')">Check In</button>' : '') + '</td>' +
-          '</tr>';
+        const checked = a.checked_in ? '✅' : '❌';
+        const guests = a.guests_checked_in ?? '-';
+        const actions = a.checked_in
+          ? `<button onclick="uncheckIn(${a.id})">Undo</button>`
+          : `<input type="number" min="1" max="${a.total_guests}" id="guests_${a.id}" placeholder="#">
+             <button onclick="checkIn(${a.id})">Check In</button>`;
+        table.innerHTML += `
+          <tr>
+            <td data-label="Name">${a.swimmer_name}</td>
+            <td data-label="Email">${a.parent_email}</td>
+            <td data-label="Total Guests">${a.total_guests}</td>
+            <td data-label="Checked In">${checked}</td>
+            <td data-label="Guests Checked In">${guests}</td>
+            <td data-label="Action" class="actions">${actions}</td>
+          </tr>`;
       });
+      table.innerHTML += '</tbody>';
     }
 
     async function checkIn(id) {
-      await fetch('/checkin/' + id, { method: 'POST' });
+      const input = document.getElementById('guests_' + id);
+      const guests_checked_in = parseInt(input.value);
+      if (isNaN(guests_checked_in) || guests_checked_in < 1) {
+        alert('Please enter a valid number of guests.');
+        return;
+      }
+      await fetch('/checkin/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guests_checked_in })
+      });
       loadAttendees();
     }
 
+    async function uncheckIn(id) {
+      await fetch('/uncheckin/' + id, { method: 'POST' });
+      loadAttendees();
+    }
+
+    function exportCSV() {
+      window.location.href = '/export';
+    }
+
     loadAttendees();
+    setInterval(loadAttendees, 10000);
+  
+    function filterTable() {
+      const input = document.getElementById('search').value.toLowerCase();
+      const rows = document.querySelectorAll('#attendee-table tbody tr');
+      rows.forEach(row => {
+        const name = row.cells[0]?.innerText.toLowerCase();
+        row.style.display = name.includes(input) ? '' : 'none';
+      });
+    }
   </script>
 </body>
 </html>
