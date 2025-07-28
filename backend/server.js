@@ -63,6 +63,14 @@ app.get('/export', async (req, res) => {
   }
 });
 
+app.get('/heartbeat', (req, res) => {
+  res.sendStatus(200);
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
